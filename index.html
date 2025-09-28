@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ContaTienda - Software Contable</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- Pantalla de Autenticación -->
+    <div id="login-screen" class="screen active">
+        <div class="container">
+            <div class="login-card">
+                <div class="header">
+                    <h1>ContaTienda</h1>
+                    <p>Sistema de Gestión Contable</p>
+                </div>
+                
+                <form class="login-form" id="loginForm">
+                    <div class="form-group">
+                        <label for="cedula">Cédula</label>
+                        <input type="text" id="cedula" name="cedula" placeholder="Ingresa tu cédula" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="password">Contraseña</label>
+                        <input type="password" id="password" name="password" placeholder="Ingresa tu contraseña" required>
+                    </div>
+                    
+                    <button type="submit" class="btn-primary">Ingresar</button>
+                    
+                    <div class="form-links">
+                        <a href="#" onclick="showScreen('register-screen')">¿No tienes cuenta? Regístrate</a>
+                    </div>
+                </form>
+                
+                <!-- Mensaje de error -->
+                <div id="login-error" class="error-message hidden">
+                    Cédula o contraseña incorrectos. Por favor, verifica tus datos.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pantalla de Registro -->
+    <div id="register-screen" class="screen">
+        <div class="container">
+            <div class="register-card">
+                <div class="header">
+                    <h1>Registro de Usuario</h1>
+                    <p>Ingresa tu cédula y contraseña para crear una cuenta</p>
+                </div>
+                
+                <form class="register-form" id="registerForm">
+                    <div class="form-group">
+                        <label for="regCedula">Cédula</label>
+                        <input type="text" id="regCedula" name="cedula" placeholder="Ingresa tu cédula" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="regPassword">Contraseña</label>
+                        <input type="password" id="regPassword" name="password" placeholder="Crea una contraseña" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="confirmPassword">Confirmar Contraseña</label>
+                        <input type="password" id="confirmPassword" name="confirmPassword" placeholder="Confirma tu contraseña" required>
+                    </div>
+                    
+                    <div class="form-actions">
+                        <button type="button" class="btn-secondary" onclick="showScreen('login-screen')">Cancelar</button>
+                        <button type="submit" class="btn-primary">Registrar</button>
+                    </div>
+                </form>
+                
+                <!-- Mensaje de error -->
+                <div id="register-error" class="error-message hidden">
+                    Error al registrar usuario. Por favor, verifica los datos ingresados.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pantalla de Notificación de Errores -->
+    <div id="error-screen" class="screen">
+        <div class="container">
+            <div class="error-card">
+                <div class="error-icon">⚠️</div>
+                <h1>Error del Sistema</h1>
+                <p id="error-message">Ha ocurrido un error inesperado. Por favor, inténtalo de nuevo.</p>
+                
+                <div class="error-details">
+                    <h3>Detalles del Error:</h3>
+                    <div class="error-code">
+                        <strong>Código:</strong> <span id="error-code">ERR-001</span>
+                    </div>
+                    <div class="error-time">
+                        <strong>Hora:</strong> <span id="error-time"></span>
+                    </div>
+                </div>
+                
+                <div class="error-actions">
+                    <button class="btn-secondary" onclick="showScreen('login-screen')">Volver al Inicio</button>
+                    <button class="btn-primary" onclick="retryOperation()">Reintentar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Navegación de Prototipos -->
+    <div class="prototype-nav">
+        <h3>Navegación de Prototipos</h3>
+        <div class="nav-buttons">
+            <button onclick="showScreen('login-screen')" class="nav-btn">Login</button>
+            <button onclick="showScreen('register-screen')" class="nav-btn">Registro</button>
+            <button onclick="showErrorScreen('Error de conexión con la base de datos')" class="nav-btn">Error</button>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
