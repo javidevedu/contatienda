@@ -3,120 +3,209 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ContaTienda - Software Contable</title>
+    <title>ContaTienda - Gestión Contable</title>
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <!-- Pantalla de Autenticación -->
+    <!-- Pantalla de Login -->
     <div id="login-screen" class="screen active">
-        <div class="container">
-            <div class="login-card">
-                <div class="header">
-                    <h1>ContaTienda</h1>
-                    <p>Sistema de Gestión Contable</p>
+        <div class="login-container">
+            <h1>ContaTienda</h1>
+            <h2>Gestión Contable</h2>
+            <div class="form-group">
+                <label for="username">Usuario:</label>
+                <input type="text" id="username" placeholder="Ingrese su usuario">
+            </div>
+            <div class="form-group">
+                <label for="password">Contraseña:</label>
+                <input type="password" id="password" placeholder="Ingrese su contraseña">
+            </div>
+            <button id="login-btn">Ingresar</button>
+            <p id="login-error" class="error-message"></p>
+        </div>
+    </div>
+
+    <!-- Pantalla Principal (Dashboard) -->
+    <div id="main-screen" class="screen">
+        <!-- Menú Lateral -->
+        <div class="sidebar">
+            <h2>ContaTienda</h2>
+            <ul class="menu">
+                <li><a href="#" data-view="dashboard" class="active">Dashboard</a></li>
+                <li><a href="#" data-view="ventas">Registrar Ventas</a></li>
+                <li><a href="#" data-view="egresos">Registrar Egresos</a></li>
+                <li><a href="#" data-view="deudas">Gestionar Deudas</a></li>
+            </ul>
+            <button id="logout-btn">Cerrar Sesión</button>
+        </div>
+
+        <!-- Contenido Principal -->
+        <div class="main-content">
+            <!-- Dashboard -->
+            <div id="dashboard-view" class="view active">
+                <h2>Dashboard de Resumen</h2>
+                <div class="dashboard-cards">
+                    <div class="card">
+                        <h3>Total Ventas</h3>
+                        <p id="total-ventas">$0</p>
+                    </div>
+                    <div class="card">
+                        <h3>Total Egresos</h3>
+                        <p id="total-egresos">$0</p>
+                    </div>
+                    <div class="card">
+                        <h3>Total Deudas Pendientes</h3>
+                        <p id="total-deudas">$0</p>
+                    </div>
                 </div>
-                
-                <form class="login-form" id="loginForm">
+                <div class="dashboard-tables">
+                    <div class="table-container">
+                        <h3>Últimas Ventas</h3>
+                        <table id="ultimas-ventas">
+                            <thead>
+                                <tr>
+                                    <th>Fecha</th>
+                                    <th>Monto</th>
+                                    <th>Notas</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- Se llenará dinámicamente -->
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="table-container">
+                        <h3>Últimos Egresos</h3>
+                        <table id="ultimos-egresos">
+                            <thead>
+                                <tr>
+                                    <th>Fecha</th>
+                                    <th>Monto</th>
+                                    <th>Descripción</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- Se llenará dinámicamente -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Registro de Ventas -->
+            <div id="ventas-view" class="view">
+                <h2>Registro de Ventas</h2>
+                <div class="form-container">
                     <div class="form-group">
-                        <label for="cedula">Cédula</label>
-                        <input type="text" id="cedula" name="cedula" placeholder="Ingresa tu cédula" required>
+                        <label for="venta-monto">Monto:</label>
+                        <input type="number" id="venta-monto" placeholder="Ingrese el monto">
                     </div>
-                    
                     <div class="form-group">
-                        <label for="password">Contraseña</label>
-                        <input type="password" id="password" name="password" placeholder="Ingresa tu contraseña" required>
+                        <label for="venta-fecha">Fecha:</label>
+                        <input type="date" id="venta-fecha">
                     </div>
-                    
-                    <button type="submit" class="btn-primary">Ingresar</button>
-                    
-                    <div class="form-links">
-                        <a href="#" onclick="showScreen('register-screen')">¿No tienes cuenta? Regístrate</a>
+                    <div class="form-group">
+                        <label for="venta-notas">Notas:</label>
+                        <textarea id="venta-notas" placeholder="Ingrese notas adicionales"></textarea>
                     </div>
-                </form>
-                
-                <!-- Mensaje de error -->
-                <div id="login-error" class="error-message hidden">
-                    Cédula o contraseña incorrectos. Por favor, verifica tus datos.
+                    <button id="registrar-venta-btn">Registrar Venta</button>
+                    <p id="venta-error" class="error-message"></p>
+                </div>
+                <div class="table-container">
+                    <h3>Historial de Ventas</h3>
+                    <table id="tabla-ventas">
+                        <thead>
+                            <tr>
+                                <th>Fecha</th>
+                                <th>Monto</th>
+                                <th>Notas</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Se llenará dinámicamente -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Registro de Egresos -->
+            <div id="egresos-view" class="view">
+                <h2>Registro de Egresos</h2>
+                <div class="form-container">
+                    <div class="form-group">
+                        <label for="egreso-monto">Monto:</label>
+                        <input type="number" id="egreso-monto" placeholder="Ingrese el monto">
+                    </div>
+                    <div class="form-group">
+                        <label for="egreso-fecha">Fecha:</label>
+                        <input type="date" id="egreso-fecha">
+                    </div>
+                    <div class="form-group">
+                        <label for="egreso-descripcion">Descripción:</label>
+                        <textarea id="egreso-descripcion" placeholder="Ingrese la descripción"></textarea>
+                    </div>
+                    <button id="registrar-egreso-btn">Registrar Egreso</button>
+                    <p id="egreso-error" class="error-message"></p>
+                </div>
+                <div class="table-container">
+                    <h3>Historial de Egresos</h3>
+                    <table id="tabla-egresos">
+                        <thead>
+                            <tr>
+                                <th>Fecha</th>
+                                <th>Monto</th>
+                                <th>Descripción</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Se llenará dinámicamente -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Gestión de Deudas -->
+            <div id="deudas-view" class="view">
+                <h2>Gestión de Deudas</h2>
+                <div class="form-container">
+                    <div class="form-group">
+                        <label for="deuda-comprador">Comprador:</label>
+                        <input type="text" id="deuda-comprador" placeholder="Nombre del comprador">
+                    </div>
+                    <div class="form-group">
+                        <label for="deuda-monto">Monto:</label>
+                        <input type="number" id="deuda-monto" placeholder="Ingrese el monto">
+                    </div>
+                    <div class="form-group">
+                        <label for="deuda-fecha">Fecha:</label>
+                        <input type="date" id="deuda-fecha">
+                    </div>
+                    <button id="registrar-deuda-btn">Registrar Deuda</button>
+                    <p id="deuda-error" class="error-message"></p>
+                </div>
+                <div class="table-container">
+                    <h3>Historial de Deudas</h3>
+                    <table id="tabla-deudas">
+                        <thead>
+                            <tr>
+                                <th>Comprador</th>
+                                <th>Fecha</th>
+                                <th>Monto</th>
+                                <th>Estado</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Se llenará dinámicamente -->
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Pantalla de Registro -->
-    <div id="register-screen" class="screen">
-        <div class="container">
-            <div class="register-card">
-                <div class="header">
-                    <h1>Registro de Usuario</h1>
-                    <p>Ingresa tu cédula y contraseña para crear una cuenta</p>
-                </div>
-                
-                <form class="register-form" id="registerForm">
-                    <div class="form-group">
-                        <label for="regCedula">Cédula</label>
-                        <input type="text" id="regCedula" name="cedula" placeholder="Ingresa tu cédula" required>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="regPassword">Contraseña</label>
-                        <input type="password" id="regPassword" name="password" placeholder="Crea una contraseña" required>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="confirmPassword">Confirmar Contraseña</label>
-                        <input type="password" id="confirmPassword" name="confirmPassword" placeholder="Confirma tu contraseña" required>
-                    </div>
-                    
-                    <div class="form-actions">
-                        <button type="button" class="btn-secondary" onclick="showScreen('login-screen')">Cancelar</button>
-                        <button type="submit" class="btn-primary">Registrar</button>
-                    </div>
-                </form>
-                
-                <!-- Mensaje de error -->
-                <div id="register-error" class="error-message hidden">
-                    Error al registrar usuario. Por favor, verifica los datos ingresados.
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Pantalla de Notificación de Errores -->
-    <div id="error-screen" class="screen">
-        <div class="container">
-            <div class="error-card">
-                <div class="error-icon">⚠️</div>
-                <h1>Error del Sistema</h1>
-                <p id="error-message">Ha ocurrido un error inesperado. Por favor, inténtalo de nuevo.</p>
-                
-                <div class="error-details">
-                    <h3>Detalles del Error:</h3>
-                    <div class="error-code">
-                        <strong>Código:</strong> <span id="error-code">ERR-001</span>
-                    </div>
-                    <div class="error-time">
-                        <strong>Hora:</strong> <span id="error-time"></span>
-                    </div>
-                </div>
-                
-                <div class="error-actions">
-                    <button class="btn-secondary" onclick="showScreen('login-screen')">Volver al Inicio</button>
-                    <button class="btn-primary" onclick="retryOperation()">Reintentar</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Navegación de Prototipos -->
-    <div class="prototype-nav">
-        <h3>Navegación de Prototipos</h3>
-        <div class="nav-buttons">
-            <button onclick="showScreen('login-screen')" class="nav-btn">Login</button>
-            <button onclick="showScreen('register-screen')" class="nav-btn">Registro</button>
-            <button onclick="showErrorScreen('Error de conexión con la base de datos')" class="nav-btn">Error</button>
-        </div>
-    </div>
-
-    <script src="script.js"></script>
+    <script src="app.js"></script>
 </body>
 </html>
