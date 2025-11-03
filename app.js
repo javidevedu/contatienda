@@ -5,11 +5,11 @@
 
 // Datos de usuarios predefinidos
 const usuarios = [
-    { username: 'admin1', password: 'password1' },
+    { username: 'admin1', password: '123456' },
     { username: 'admin2', password: 'password2' }
 ];
 
-// Datos en memoria (se perderán al recargar la página)
+// reemplazar las variables en memoria por arrays que se llenan desde el servidor
 let ventas = [];
 let egresos = [];
 let deudas = [];
@@ -20,6 +20,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Inicializar la aplicación
     inicializarEventos();
     establecerFechaActual();
+    cargarDatosDesdeAPI();
 });
 
 /**
@@ -177,43 +178,73 @@ function actualizarDashboard() {
 }
 
 /**
- * Registra una nueva venta
+ * Carga los datos iniciales desde la API
  */
-function registrarVenta() {
+async function cargarDatosDesdeAPI() {
+    try {
+        const [resVentas, resEgresos, resDeudas] = await Promise.all([
+            fetch('/server/php/ventas.php'),
+            fetch('/server/php/egresos.php'),
+            fetch('/server/php/deudas.php')
+        ]);
+        if (!resVentas.ok || !resEgresos.ok || !resDeudas.ok) {
+            throw new Error('Respuesta inválida del servidor');
+        }
+        ventas = await resVentas.json();
+        egresos = await resEgresos.json();
+        deudas = await resDeudas.json();
+        actualizarDashboard();
+    } catch (err) {
+        console.error('Error cargando datos desde API', err);
+    }
+}
+
+// Al crear/guardar usa las rutas PHP
+async function registrarVenta() {
     const monto = parseFloat(document.getElementById('venta-monto').value);
     const fecha = document.getElementById('venta-fecha').value;
     const notas = document.getElementById('venta-notas').value;
     const errorElement = document.getElementById('venta-error');
-    
-    // Validar campos obligatorios
+
     if (!monto || !fecha) {
         errorElement.textContent = 'Por favor, complete los campos obligatorios (monto y fecha)';
         return;
     }
-    
     if (monto <= 0) {
         errorElement.textContent = 'El monto debe ser mayor que cero';
         return;
     }
-    
-    // Crear nueva venta
-    const nuevaVenta = {
-        id: Date.now(), // ID único basado en timestamp
-        monto,
-        fecha,
-        notas
-    };
-    
-    // Agregar a la lista de ventas
-    ventas.push(nuevaVenta);
-    
-    // Limpiar formulario
-    document.getElementById('venta-monto').value = '';
-    document.getElementById('venta-notas').value = '';
-    errorElement.textContent = '';
-    
-    // Actualizar tabla de ventas
-    actualizarTablaVentas();
+
+    try {
+        const res = await fetch('/server/php/ventas.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ monto, fecha, notas })
+        });
+        if (!res.ok) throw new Error('Error al guardar la venta');
+
+        document.getElementById('venta-monto').value = '';
+        document.getElementById('venta-notas').value = '';
+        errorElement.textContent = '';
+
+        await cargarDatosDesdeAPI();
+        cambiarVista('ventas');
+    } catch (err) {
+        console.error(err);
+        document.getElementById('venta-error').textContent = 'Error al guardar la venta';
+    }
+}
+
+async function eliminarVenta(id) {
+    try {
+        const res = await fetch(`/server/php/ventas.php?id=${id}`, { method: 'DELETE' });
+        if (!res.ok && res.status !== 204) throw new Error('Error eliminando venta');
+        await cargarDatosDesdeAPI();
+        actualizarTablaVentas();
+        actualizarDashboard();
+    } catch (err) {
+        console.error('Error eliminando venta', err);
+    }
 }
 
 /**
@@ -248,8 +279,9 @@ function actualizarTablaVentas() {
 /**
  * Elimina una venta por su ID
  */
-function eliminarVenta(id) {
-    ventas = ventas.filter(v => v.id !== id);
+async function eliminarVenta(id) {
+    await fetch(`/server/php/ventas.php?id=${id}`, { method: 'DELETE' });
+    await cargarDatosDesdeAPI();
     actualizarTablaVentas();
     actualizarDashboard();
 }
@@ -257,41 +289,33 @@ function eliminarVenta(id) {
 /**
  * Registra un nuevo egreso
  */
-function registrarEgreso() {
+async function registrarEgreso() {
     const monto = parseFloat(document.getElementById('egreso-monto').value);
     const fecha = document.getElementById('egreso-fecha').value;
     const descripcion = document.getElementById('egreso-descripcion').value;
     const errorElement = document.getElementById('egreso-error');
-    
-    // Validar campos obligatorios
     if (!monto || !fecha || !descripcion) {
         errorElement.textContent = 'Por favor, complete todos los campos';
         return;
     }
-    
     if (monto <= 0) {
         errorElement.textContent = 'El monto debe ser mayor que cero';
         return;
     }
-    
-    // Crear nuevo egreso
-    const nuevoEgreso = {
-        id: Date.now(), // ID único basado en timestamp
-        monto,
-        fecha,
-        descripcion
-    };
-    
-    // Agregar a la lista de egresos
-    egresos.push(nuevoEgreso);
-    
-    // Limpiar formulario
-    document.getElementById('egreso-monto').value = '';
-    document.getElementById('egreso-descripcion').value = '';
-    errorElement.textContent = '';
-    
-    // Actualizar tabla de egresos
-    actualizarTablaEgresos();
+    try {
+        await fetch('/server/php/egresos.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ monto, fecha, descripcion })
+        });
+        document.getElementById('egreso-monto').value = '';
+        document.getElementById('egreso-descripcion').value = '';
+        errorElement.textContent = '';
+        await cargarDatosDesdeAPI();
+        cambiarVista('egresos');
+    } catch (err) {
+        errorElement.textContent = 'Error al guardar el egreso';
+    }
 }
 
 /**
@@ -326,8 +350,9 @@ function actualizarTablaEgresos() {
 /**
  * Elimina un egreso por su ID
  */
-function eliminarEgreso(id) {
-    egresos = egresos.filter(e => e.id !== id);
+async function eliminarEgreso(id) {
+    await fetch(`/server/php/egresos.php?id=${id}`, { method: 'DELETE' });
+    await cargarDatosDesdeAPI();
     actualizarTablaEgresos();
     actualizarDashboard();
 }
@@ -335,42 +360,33 @@ function eliminarEgreso(id) {
 /**
  * Registra una nueva deuda
  */
-function registrarDeuda() {
+async function registrarDeuda() {
     const comprador = document.getElementById('deuda-comprador').value;
     const monto = parseFloat(document.getElementById('deuda-monto').value);
     const fecha = document.getElementById('deuda-fecha').value;
     const errorElement = document.getElementById('deuda-error');
-    
-    // Validar campos obligatorios
     if (!comprador || !monto || !fecha) {
         errorElement.textContent = 'Por favor, complete todos los campos';
         return;
     }
-    
     if (monto <= 0) {
         errorElement.textContent = 'El monto debe ser mayor que cero';
         return;
     }
-    
-    // Crear nueva deuda
-    const nuevaDeuda = {
-        id: Date.now(), // ID único basado en timestamp
-        comprador,
-        monto,
-        fecha,
-        estado: 'pendiente'
-    };
-    
-    // Agregar a la lista de deudas
-    deudas.push(nuevaDeuda);
-    
-    // Limpiar formulario
-    document.getElementById('deuda-comprador').value = '';
-    document.getElementById('deuda-monto').value = '';
-    errorElement.textContent = '';
-    
-    // Actualizar tabla de deudas
-    actualizarTablaDeudas();
+    try {
+        await fetch('/server/php/deudas.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ comprador, monto, fecha })
+        });
+        document.getElementById('deuda-comprador').value = '';
+        document.getElementById('deuda-monto').value = '';
+        errorElement.textContent = '';
+        await cargarDatosDesdeAPI();
+        cambiarVista('deudas');
+    } catch (err) {
+        errorElement.textContent = 'Error al guardar la deuda';
+    }
 }
 
 /**
@@ -415,20 +431,19 @@ function actualizarTablaDeudas() {
 /**
  * Marca una deuda como pagada
  */
-function marcarDeudaPagada(id) {
-    const deuda = deudas.find(d => d.id === id);
-    if (deuda) {
-        deuda.estado = 'pagado';
-        actualizarTablaDeudas();
-        actualizarDashboard();
-    }
+async function marcarDeudaPagada(id) {
+    await fetch(`/server/php/deudas.php?id=${id}&action=pagar`, { method: 'PUT' });
+    await cargarDatosDesdeAPI();
+    actualizarTablaDeudas();
+    actualizarDashboard();
 }
 
 /**
  * Elimina una deuda por su ID
  */
-function eliminarDeuda(id) {
-    deudas = deudas.filter(d => d.id !== id);
+async function eliminarDeuda(id) {
+    await fetch(`/server/php/deudas.php?id=${id}`, { method: 'DELETE' });
+    await cargarDatosDesdeAPI();
     actualizarTablaDeudas();
     actualizarDashboard();
 }
