@@ -1,36 +1,50 @@
-# ContaTienda - Gestión Contable para Tiendas de Barrio
+# ContaTienda
 
-ContaTienda es una aplicación web simple para la gestión contable de tiendas de barrio. Permite registrar ventas, egresos y deudas, además de proporcionar un dashboard con resúmenes de la información contable.
+Aplicación web simple para la gestión contable de una tienda de barrio.
 
-## Características
+## Cómo ejecutar
 
-- Autenticación de usuarios con credenciales predefinidas
-- Registro de ventas con monto, fecha y notas
-- Registro de egresos con monto, fecha y descripción
-- Gestión de deudas con comprador, monto, fecha y estado (pagado/pendiente)
-- Dashboard con resumen de totales y últimas transacciones
+- Abre esta carpeta en tu editor y usa Live Server, o simplemente abre `index.html` en tu navegador.
+- No requiere instalaciones ni dependencias externas.
 
-## Requisitos
+## Credenciales de prueba (en memoria)
 
-- Navegador web moderno (Chrome 90+ o Safari 14+)
-- No requiere instalación de software adicional
+- Usuario: `u123` / Contraseña: `123`
+- Usuario: `u1234` / Contraseña: `1234`
+- Usuario: `admin` / Contraseña: `admin`
 
-## Instrucciones de uso
+## Módulos
 
-1. Abrir el archivo `index.html` con Live Server o directamente en el navegador
-2. Iniciar sesión con alguna de las siguientes credenciales:
-   - Usuario: `admin1` / Contraseña: `password1`
-   - Usuario: `admin2` / Contraseña: `password2`
-3. Navegar por los diferentes módulos usando el menú lateral
+- Registro de Ventas (monto, fecha, notas) con eliminación
+- Registro de Egresos (monto, fecha, descripción) con eliminación
+- Gestión de Deudas (comprador, monto, fecha, estado) con eliminación
+- Dashboard con totales y gráfico mensual (sin librerías externas)
 
-## Notas importantes
+Los datos se guardan en tiempo real en `localStorage` del navegador para esta versión sin backend.
 
-- La aplicación almacena todos los datos en memoria, por lo que se perderán al recargar la página
-- No se requiere conexión a internet ni servidor para su funcionamiento
-- Desarrollada con HTML, CSS y JavaScript puro, sin dependencias externas
+## Backend opcional (PHP + MySQL)
 
-## Estructura de archivos
+Incluimos archivos PHP y una migración SQL para usar en un hosting con MySQL. Esta app funciona sin backend, pero si quieres persistir en servidor:
 
-- `index.html`: Estructura de la aplicación y formularios
-- `styles.css`: Estilos de la interfaz de usuario
-- `app.js`: Lógica de la aplicación y gestión de datos en memoria
+1) Crea la base con `Migrations/001_create_tables.sql`.
+2) Sube la carpeta `Php/` al hosting (ajusta rutas si es necesario).
+3) Asegura que `Php/db.php` contiene tus credenciales de MySQL.
+
+Conexión de ejemplo (InfinityFree):
+
+- host: `sql206.infinityfree.com`
+- db: `if0_40216426_contatienda`
+- user: `if0_40216426`
+- pass: `qepqyiXERz`
+
+> Nota: El frontend no llama al backend por defecto para evitar restricciones al abrir `index.html` directamente. Si vas a integrar, realiza `fetch` hacia los endpoints en `Php/` y maneja CORS y rutas HTTPS.
+
+## Compatibilidad
+
+- Chrome 90+, Safari 14+
+
+## Licencia
+
+MIT
+
+

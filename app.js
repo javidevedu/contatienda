@@ -1,461 +1,593 @@
-/**
- * ContaTienda - Aplicación de gestión contable para tiendas de barrio
- * Desarrollado con JavaScript puro, sin dependencias externas
- */
+(() => {
+  "use strict";
 
-// Datos de usuarios predefinidos
-const usuarios = [
-    { username: 'admin1', password: '123456' },
-    { username: 'admin2', password: 'password2' }
-];
+  // Simple in-memory auth; no registration
+  const USERS = {
+    "u123": "123",
+    "u1234": "1234",
+    "admin": "admin"
+  };
 
-// reemplazar las variables en memoria por arrays que se llenan desde el servidor
-let ventas = [];
-let egresos = [];
-let deudas = [];
-let usuarioActual = null;
+  // State + localStorage persistence
+  const storageKey = {
+    session: "ct_session",
+    ventas: "ct_ventas",
+    egresos: "ct_egresos",
+    deudas: "ct_deudas"
+  };
 
-// Elementos DOM
-document.addEventListener('DOMContentLoaded', () => {
-    // Inicializar la aplicación
-    inicializarEventos();
-    establecerFechaActual();
-    cargarDatosDesdeAPI();
-});
+  // Backend API URL (ajusta según tu hosting)
+  const API_BASE = './Php/';
+  let useBackend = true; // Siempre intentar usar el backend cuando hay sesión
+  let lastBackendCheck = 0;
 
-/**
- * Inicializa todos los eventos de la aplicación
- */
-function inicializarEventos() {
-    // Eventos de autenticación
-    document.getElementById('login-btn').addEventListener('click', autenticarUsuario);
-    document.getElementById('logout-btn').addEventListener('click', cerrarSesion);
-    
-    // Eventos de navegación
-    const menuLinks = document.querySelectorAll('.menu a');
-    menuLinks.forEach(link => {
-        link.addEventListener('click', (e) => {
-            e.preventDefault();
-            cambiarVista(link.getAttribute('data-view'));
-        });
-    });
-    
-    // Eventos de formularios
-    document.getElementById('registrar-venta-btn').addEventListener('click', registrarVenta);
-    document.getElementById('registrar-egreso-btn').addEventListener('click', registrarEgreso);
-    document.getElementById('registrar-deuda-btn').addEventListener('click', registrarDeuda);
-}
+  /** @typedef {{ id:string|number, monto:number, fecha:string, notas?:string }} Venta */
+  /** @typedef {{ id:string|number, monto:number, fecha:string, descripcion:string }} Egreso */
+  /** @typedef {{ id:string|number, comprador:string, monto:number, fecha:string, estado:"pagado"|"pendiente" }} Deuda */
 
-/**
- * Establece la fecha actual en los campos de fecha
- */
-function establecerFechaActual() {
-    const fechaActual = new Date().toISOString().split('T')[0];
-    document.getElementById('venta-fecha').value = fechaActual;
-    document.getElementById('egreso-fecha').value = fechaActual;
-    document.getElementById('deuda-fecha').value = fechaActual;
-}
+  /** @type {Venta[]} */
+  let ventas = [];
+  /** @type {Egreso[]} */
+  let egresos = [];
+  /** @type {Deuda[]} */
+  let deudas = [];
 
-/**
- * Autenticación de usuario
- */
-function autenticarUsuario() {
-    const username = document.getElementById('username').value;
-    const password = document.getElementById('password').value;
-    const errorElement = document.getElementById('login-error');
-    
-    // Validar campos obligatorios
-    if (!username || !password) {
-        errorElement.textContent = 'Por favor, complete todos los campos';
-        return;
-    }
-    
-    // Verificar credenciales
-    const usuarioValido = usuarios.find(u => 
-        u.username === username && u.password === password
-    );
-    
-    if (usuarioValido) {
-        // Autenticación exitosa
-        usuarioActual = username;
-        document.getElementById('login-screen').classList.remove('active');
-        document.getElementById('main-screen').classList.add('active');
-        cambiarVista('dashboard');
-        actualizarDashboard();
-    } else {
-        // Autenticación fallida
-        errorElement.textContent = 'Credenciales inválidas';
-    }
-}
-
-/**
- * Cierra la sesión del usuario
- */
-function cerrarSesion() {
-    usuarioActual = null;
-    document.getElementById('main-screen').classList.remove('active');
-    document.getElementById('login-screen').classList.add('active');
-    document.getElementById('username').value = '';
-    document.getElementById('password').value = '';
-    document.getElementById('login-error').textContent = '';
-}
-
-/**
- * Cambia entre las diferentes vistas de la aplicación
- */
-function cambiarVista(vista) {
-    // Ocultar todas las vistas
-    document.querySelectorAll('.view').forEach(v => {
-        v.classList.remove('active');
-    });
-    
-    // Mostrar la vista seleccionada
-    document.getElementById(`${vista}-view`).classList.add('active');
-    
-    // Actualizar menú
-    document.querySelectorAll('.menu a').forEach(link => {
-        link.classList.remove('active');
-    });
-    document.querySelector(`.menu a[data-view="${vista}"]`).classList.add('active');
-    
-    // Actualizar datos según la vista
-    if (vista === 'dashboard') {
-        actualizarDashboard();
-    } else if (vista === 'ventas') {
-        actualizarTablaVentas();
-    } else if (vista === 'egresos') {
-        actualizarTablaEgresos();
-    } else if (vista === 'deudas') {
-        actualizarTablaDeudas();
-    }
-}
-
-/**
- * Actualiza el dashboard con los datos actuales
- */
-function actualizarDashboard() {
-    // Calcular totales
-    const totalVentas = ventas.reduce((sum, v) => sum + v.monto, 0);
-    const totalEgresos = egresos.reduce((sum, e) => sum + e.monto, 0);
-    const totalDeudas = deudas
-        .filter(d => d.estado === 'pendiente')
-        .reduce((sum, d) => sum + d.monto, 0);
-    
-    // Actualizar totales en el dashboard
-    document.getElementById('total-ventas').textContent = `$${totalVentas}`;
-    document.getElementById('total-egresos').textContent = `$${totalEgresos}`;
-    document.getElementById('total-deudas').textContent = `$${totalDeudas}`;
-    
-    // Actualizar tablas de últimas ventas
-    const tbodyVentas = document.querySelector('#ultimas-ventas tbody');
-    tbodyVentas.innerHTML = '';
-    
-    // Mostrar las últimas 5 ventas
-    ventas.slice(-5).reverse().forEach(venta => {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-            <td>${formatearFecha(venta.fecha)}</td>
-            <td>$${venta.monto}</td>
-            <td>${venta.notas || '-'}</td>
-        `;
-        tbodyVentas.appendChild(tr);
-    });
-    
-    // Actualizar tablas de últimos egresos
-    const tbodyEgresos = document.querySelector('#ultimos-egresos tbody');
-    tbodyEgresos.innerHTML = '';
-    
-    // Mostrar los últimos 5 egresos
-    egresos.slice(-5).reverse().forEach(egreso => {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-            <td>${formatearFecha(egreso.fecha)}</td>
-            <td>$${egreso.monto}</td>
-            <td>${egreso.descripcion || '-'}</td>
-        `;
-        tbodyEgresos.appendChild(tr);
-    });
-}
-
-/**
- * Carga los datos iniciales desde la API
- */
-async function cargarDatosDesdeAPI() {
+  function readArray(key){
     try {
-        const [resVentas, resEgresos, resDeudas] = await Promise.all([
-            fetch('/server/php/ventas.php'),
-            fetch('/server/php/egresos.php'),
-            fetch('/server/php/deudas.php')
-        ]);
-        if (!resVentas.ok || !resEgresos.ok || !resDeudas.ok) {
-            throw new Error('Respuesta inválida del servidor');
+      const raw = localStorage.getItem(key);
+      return raw ? JSON.parse(raw) : [];
+    } catch { return []; }
+  }
+  function writeArray(key, arr){
+    localStorage.setItem(key, JSON.stringify(arr));
+  }
+
+  // API functions
+  async function apiGet(endpoint){
+    try {
+      const res = await fetch(API_BASE + endpoint);
+      if(!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      return Array.isArray(data) ? data : [];
+    } catch(err){
+      console.warn(`API GET ${endpoint} failed:`, err);
+      // No desactivar backend permanentemente, solo marcar como fallido temporalmente
+      const key = endpoint.replace('.php','');
+      const storageMap = { 'ventas': storageKey.ventas, 'egresos': storageKey.egresos, 'deudas': storageKey.deudas };
+      return readArray(storageMap[key] || storageKey.ventas) || [];
+    }
+  }
+
+  async function apiPost(endpoint, body, retries = 3){
+    for(let i = 0; i < retries; i++){
+      try {
+        const res = await fetch(API_BASE + endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        });
+        if(!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        return data;
+      } catch(err){
+        console.warn(`API POST ${endpoint} attempt ${i+1}/${retries} failed:`, err);
+        if(i < retries - 1){
+          // Esperar antes de reintentar (exponential backoff)
+          await new Promise(resolve => setTimeout(resolve, 1000 * (i + 1)));
         }
-        ventas = await resVentas.json();
-        egresos = await resEgresos.json();
-        deudas = await resDeudas.json();
-        actualizarDashboard();
-    } catch (err) {
-        console.error('Error cargando datos desde API', err);
+      }
     }
-}
+    return null; // Falló después de todos los reintentos
+  }
 
-// Al crear/guardar usa las rutas PHP
-async function registrarVenta() {
-    const monto = parseFloat(document.getElementById('venta-monto').value);
-    const fecha = document.getElementById('venta-fecha').value;
-    const notas = document.getElementById('venta-notas').value;
-    const errorElement = document.getElementById('venta-error');
-
-    if (!monto || !fecha) {
-        errorElement.textContent = 'Por favor, complete los campos obligatorios (monto y fecha)';
-        return;
-    }
-    if (monto <= 0) {
-        errorElement.textContent = 'El monto debe ser mayor que cero';
-        return;
-    }
-
+  async function apiDelete(endpoint, id){
     try {
-        const res = await fetch('/server/php/ventas.php', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ monto, fecha, notas })
-        });
-        if (!res.ok) throw new Error('Error al guardar la venta');
-
-        document.getElementById('venta-monto').value = '';
-        document.getElementById('venta-notas').value = '';
-        errorElement.textContent = '';
-
-        await cargarDatosDesdeAPI();
-        cambiarVista('ventas');
-    } catch (err) {
-        console.error(err);
-        document.getElementById('venta-error').textContent = 'Error al guardar la venta';
+      const res = await fetch(`${API_BASE}${endpoint}?id=${id}`, { method: 'DELETE' });
+      if(!res.ok) throw new Error(`HTTP ${res.status}`);
+      return await res.json();
+    } catch(err){
+      console.warn(`API DELETE ${endpoint} failed:`, err);
+      // No desactivar backend permanentemente
+      return null;
     }
-}
+  }
 
-async function eliminarVenta(id) {
-    try {
-        const res = await fetch(`/server/php/ventas.php?id=${id}`, { method: 'DELETE' });
-        if (!res.ok && res.status !== 204) throw new Error('Error eliminando venta');
-        await cargarDatosDesdeAPI();
-        actualizarTablaVentas();
-        actualizarDashboard();
-    } catch (err) {
-        console.error('Error eliminando venta', err);
+  async function loadAllData(forceBackend = false){
+    // Si hay sesión, SIEMPRE intentar backend primero (sin importar errores previos)
+    const shouldUseBackend = forceBackend || isAuthenticated();
+    
+    if(shouldUseBackend){
+      try {
+        const [v, e, d] = await Promise.all([
+          apiGet('ventas.php'),
+          apiGet('egresos.php'),
+          apiGet('deudas.php')
+        ]);
+        ventas = v.map(adaptVenta);
+        egresos = e.map(adaptEgreso);
+        deudas = d.map(adaptDeuda);
+        // Sync to localStorage as backup ONLY
+        writeArray(storageKey.ventas, ventas);
+        writeArray(storageKey.egresos, egresos);
+        writeArray(storageKey.deudas, deudas);
+        useBackend = true; // Re-habilitar backend si funcionó
+        lastBackendCheck = Date.now();
+        return true; // Éxito
+      } catch(err){
+        console.warn('Failed to load from backend, using localStorage:', err);
+        // Si hay sesión, no desactivar backend permanentemente - seguir intentando
+        // Solo usar localStorage como fallback temporal
+        const localData = {
+          ventas: readArray(storageKey.ventas),
+          egresos: readArray(storageKey.egresos),
+          deudas: readArray(storageKey.deudas)
+        };
+        ventas = localData.ventas;
+        egresos = localData.egresos;
+        deudas = localData.deudas;
+        // Si no hay sesión y falló, entonces sí desactivar backend
+        if(!isAuthenticated() && Date.now() - lastBackendCheck > 30000){
+          useBackend = false;
+        }
+        return false; // Falló
+      }
+    } else {
+      // Solo usar localStorage si no hay sesión
+      ventas = readArray(storageKey.ventas);
+      egresos = readArray(storageKey.egresos);
+      deudas = readArray(storageKey.deudas);
+      return false;
     }
-}
+  }
 
-/**
- * Actualiza la tabla de ventas
- */
-function actualizarTablaVentas() {
-    const tbody = document.querySelector('#tabla-ventas tbody');
-    tbody.innerHTML = '';
-    
-    ventas.forEach(venta => {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-            <td>${formatearFecha(venta.fecha)}</td>
-            <td>$${venta.monto}</td>
-            <td>${venta.notas || '-'}</td>
-            <td>
-                <button class="action-btn delete-btn" data-id="${venta.id}">Eliminar</button>
-            </td>
-        `;
-        tbody.appendChild(tr);
+  function adaptVenta(v){ return { id: String(v.id), monto: parseFloat(v.monto), fecha: v.fecha, notas: v.notas || '' }; }
+  function adaptEgreso(e){ return { id: String(e.id), monto: parseFloat(e.monto), fecha: e.fecha, descripcion: e.descripcion }; }
+  function adaptDeuda(d){ return { id: String(d.id), comprador: d.comprador, monto: parseFloat(d.monto), fecha: d.fecha, estado: d.estado }; }
+
+  function setSession(user){
+    localStorage.setItem(storageKey.session, JSON.stringify({ user }));
+  }
+  function getSession(){
+    try { return JSON.parse(localStorage.getItem(storageKey.session)||"null"); } catch { return null; }
+  }
+  function clearSession(){ localStorage.removeItem(storageKey.session); }
+  function isAuthenticated(){
+    const s = getSession();
+    return !!(s && s.user && USERS[s.user]);
+  }
+  function forceLoginView(msg){
+    if (msg) { loginError.textContent = msg; }
+    appLayout.classList.add("hidden");
+    loginView.classList.remove("hidden");
+    document.body.classList.add('no-scroll');
+  }
+
+  // Elements
+  const loginView = document.getElementById("login-view");
+  const appLayout = document.getElementById("app-layout");
+  const loginForm = document.getElementById("login-form");
+  const loginError = document.getElementById("login-error");
+  const logoutBtn = document.getElementById("logout-btn");
+  const reloadBtn = document.getElementById("reload-btn");
+
+  const navButtons = Array.from(document.querySelectorAll(".nav-item"));
+  const sectionTitle = document.getElementById("section-title");
+
+  // Dashboard totals
+  const totalVentasEl = document.getElementById("total-ventas");
+  const totalEgresosEl = document.getElementById("total-egresos");
+  const totalDeudasEl = document.getElementById("total-deudas");
+  const ultVentasBody = document.querySelector("#tabla-ult-ventas tbody");
+  const ultEgresosBody = document.querySelector("#tabla-ult-egresos tbody");
+
+  // Forms
+  const formVenta = document.getElementById("form-venta");
+  const ventaMsg = document.getElementById("venta-msg");
+  const ventasBody = document.querySelector("#tabla-ventas tbody");
+
+  const formEgreso = document.getElementById("form-egreso");
+  const egresoMsg = document.getElementById("egreso-msg");
+  const egresosBody = document.querySelector("#tabla-egresos tbody");
+
+  const formDeuda = document.getElementById("form-deuda");
+  const deudaMsg = document.getElementById("deuda-msg");
+  const deudasBody = document.querySelector("#tabla-deudas tbody");
+
+  // Views
+  const views = {
+    dashboard: document.getElementById("dashboard-view"),
+    ventas: document.getElementById("ventas-view"),
+    egresos: document.getElementById("egresos-view"),
+    deudas: document.getElementById("deudas-view")
+  };
+
+  // Auth
+  loginForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const username = /** @type {HTMLInputElement} */(document.getElementById("username")).value.trim();
+    const password = /** @type {HTMLInputElement} */(document.getElementById("password")).value;
+    const valid = USERS[username] && USERS[username] === password;
+    if(!valid){
+      loginError.textContent = "Credenciales inválidas";
+      return;
+    }
+    setSession(username);
+    loginError.textContent = "";
+    await mountApp();
+  });
+
+  logoutBtn.addEventListener("click", () => {
+    clearSession();
+    forceLoginView("");
+  });
+
+  reloadBtn.addEventListener("click", async () => {
+    if(!isAuthenticated()) return;
+    reloadBtn.textContent = "🔄 Cargando...";
+    reloadBtn.disabled = true;
+    await loadAllData(true);
+    refresh();
+    reloadBtn.textContent = "🔄 Recargar";
+    reloadBtn.disabled = false;
+  });
+
+  async function mountApp(){
+    loginView.classList.add("hidden");
+    appLayout.classList.remove("hidden");
+    document.body.classList.remove('no-scroll');
+    await loadAllData();
+    switchView("dashboard");
+    renderAll();
+  }
+
+  // Navigation
+  navButtons.forEach(btn => btn.addEventListener("click", () => {
+    const target = btn.getAttribute("data-nav");
+    if(!target) return;
+    navButtons.forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    switchView(target);
+  }));
+
+  function switchView(key){
+    if(!isAuthenticated()){
+      forceLoginView("Inicia sesión para continuar");
+      return;
+    }
+    Object.entries(views).forEach(([k, el]) => {
+      if(k === key){ el.classList.remove("hidden"); sectionTitle.textContent = labelFor(k); }
+      else { el.classList.add("hidden"); }
     });
+  }
+  function labelFor(k){
+    switch(k){
+      case "dashboard": return "Dashboard";
+      case "ventas": return "Registrar Ventas";
+      case "egresos": return "Registrar Egresos";
+      case "deudas": return "Gestionar Deudas";
+      default: return k;
+    }
+  }
+
+  // Helpers
+  function formatMoney(n){
+    return new Intl.NumberFormat('es-CO', { style:'currency', currency:'COP', maximumFractionDigits:0 }).format(n);
+  }
+  function uid(){ return Math.random().toString(36).slice(2,10); }
+
+  // Forms handlers
+  formVenta.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    if(!isAuthenticated()) { forceLoginView("Inicia sesión para continuar"); return; }
+    const monto = Number((document.getElementById("venta-monto")).value);
+    const fecha = (document.getElementById("venta-fecha")).value;
+    const notas = (document.getElementById("venta-notas")).value.trim();
+    if(!(monto > 0) || !fecha){ ventaMsg.textContent = "Completa los campos"; return; }
     
-    // Agregar eventos a los botones de eliminar
-    document.querySelectorAll('#tabla-ventas .delete-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-            const id = parseInt(btn.getAttribute('data-id'));
-            eliminarVenta(id);
-        });
-    });
-}
+    ventaMsg.textContent = "Guardando en servidor...";
+    
+    // Si hay sesión, SIEMPRE guardar en el servidor SQL (con reintentos automáticos)
+    if(isAuthenticated()){
+      const result = await apiPost('ventas.php', { monto, fecha, notas }, 3);
+      if(result && result.id){
+        // Recargar TODOS los datos del servidor para tener la versión más actualizada
+        await loadAllData(true);
+        ventaMsg.textContent = "✓ Guardado en servidor";
+      } else {
+        // Si el servidor falla completamente, mostrar error pero NO guardar localmente
+        // Los datos deben estar en el servidor para que todos los usuarios los vean
+        ventaMsg.textContent = "✗ Error: No se pudo guardar en servidor. Verifica tu conexión.";
+        ventaMsg.style.color = "var(--danger)";
+        setTimeout(() => {
+          ventaMsg.textContent = "";
+          ventaMsg.style.color = "";
+        }, 5000);
+        return; // No continuar si falla el servidor
+      }
+    } else {
+      // Solo localStorage si no hay sesión (no debería llegar aquí por el check de autenticación)
+      ventaMsg.textContent = "Debes iniciar sesión para guardar";
+      return;
+    }
+    
+    (e.target).reset();
+    setTodayDefault("venta-fecha");
+    refresh();
+    setTimeout(() => ventaMsg.textContent = "", 2000);
+  });
 
-/**
- * Elimina una venta por su ID
- */
-async function eliminarVenta(id) {
-    await fetch(`/server/php/ventas.php?id=${id}`, { method: 'DELETE' });
-    await cargarDatosDesdeAPI();
-    actualizarTablaVentas();
-    actualizarDashboard();
-}
+  formEgreso.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    if(!isAuthenticated()) { forceLoginView("Inicia sesión para continuar"); return; }
+    const monto = Number((document.getElementById("egreso-monto")).value);
+    const fecha = (document.getElementById("egreso-fecha")).value;
+    const descripcion = (document.getElementById("egreso-desc")).value.trim();
+    if(!(monto > 0) || !fecha || !descripcion){ egresoMsg.textContent = "Completa los campos"; return; }
+    
+    egresoMsg.textContent = "Guardando en servidor...";
+    
+    // Si hay sesión, SIEMPRE guardar en el servidor SQL (con reintentos automáticos)
+    if(isAuthenticated()){
+      const result = await apiPost('egresos.php', { monto, fecha, descripcion }, 3);
+      if(result && result.id){
+        // Recargar TODOS los datos del servidor
+        await loadAllData(true);
+        egresoMsg.textContent = "✓ Guardado en servidor";
+      } else {
+        // Si el servidor falla completamente, mostrar error pero NO guardar localmente
+        egresoMsg.textContent = "✗ Error: No se pudo guardar en servidor. Verifica tu conexión.";
+        egresoMsg.style.color = "var(--danger)";
+        setTimeout(() => {
+          egresoMsg.textContent = "";
+          egresoMsg.style.color = "";
+        }, 5000);
+        return; // No continuar si falla el servidor
+      }
+    } else {
+      egresoMsg.textContent = "Debes iniciar sesión para guardar";
+      return;
+    }
+    
+    (e.target).reset();
+    setTodayDefault("egreso-fecha");
+    refresh();
+    setTimeout(() => egresoMsg.textContent = "", 2000);
+  });
 
-/**
- * Registra un nuevo egreso
- */
-async function registrarEgreso() {
-    const monto = parseFloat(document.getElementById('egreso-monto').value);
-    const fecha = document.getElementById('egreso-fecha').value;
-    const descripcion = document.getElementById('egreso-descripcion').value;
-    const errorElement = document.getElementById('egreso-error');
-    if (!monto || !fecha || !descripcion) {
-        errorElement.textContent = 'Por favor, complete todos los campos';
+  formDeuda.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    if(!isAuthenticated()) { forceLoginView("Inicia sesión para continuar"); return; }
+    const comprador = (document.getElementById("deuda-comprador")).value.trim();
+    const monto = Number((document.getElementById("deuda-monto")).value);
+    const fecha = (document.getElementById("deuda-fecha")).value;
+    const estado = (document.getElementById("deuda-estado")).value;
+    if(!comprador || !(monto > 0) || !fecha){ deudaMsg.textContent = "Completa los campos"; return; }
+    
+    const estadoFinal = estado === 'pagado' ? 'pagado' : 'pendiente';
+    
+    deudaMsg.textContent = "Guardando en servidor...";
+    
+    // Si hay sesión, SIEMPRE guardar en el servidor SQL (con reintentos automáticos)
+    if(isAuthenticated()){
+      const result = await apiPost('deudas.php', { comprador, monto, fecha, estado: estadoFinal }, 3);
+      if(result && result.id){
+        // Recargar TODOS los datos del servidor
+        await loadAllData(true);
+        deudaMsg.textContent = "✓ Guardado en servidor";
+      } else {
+        // Si el servidor falla completamente, mostrar error pero NO guardar localmente
+        deudaMsg.textContent = "✗ Error: No se pudo guardar en servidor. Verifica tu conexión.";
+        deudaMsg.style.color = "var(--danger)";
+        setTimeout(() => {
+          deudaMsg.textContent = "";
+          deudaMsg.style.color = "";
+        }, 5000);
+        return; // No continuar si falla el servidor
+      }
+    } else {
+      deudaMsg.textContent = "Debes iniciar sesión para guardar";
+      return;
+    }
+    
+    (e.target).reset();
+    setTodayDefault("deuda-fecha");
+    refresh();
+    setTimeout(() => deudaMsg.textContent = "", 2000);
+  });
+
+  function setTodayDefault(id){
+    const el = document.getElementById(id);
+    if(el) el.value = new Date().toISOString().slice(0,10);
+  }
+
+  // Renderers
+  function renderAll(){
+    renderTotals();
+    renderTables();
+    renderChart();
+  }
+  function refresh(){
+    renderTotals();
+    renderTables();
+    renderChart();
+  }
+
+  function renderTotals(){
+    const totalVentas = ventas.reduce((a,v) => a + v.monto, 0);
+    const totalEgresos = egresos.reduce((a,v) => a + v.monto, 0);
+    const totalDeudasPend = deudas.filter(d => d.estado === 'pendiente').reduce((a,v) => a + v.monto, 0);
+    totalVentasEl.textContent = formatMoney(totalVentas);
+    totalEgresosEl.textContent = formatMoney(totalEgresos);
+    totalDeudasEl.textContent = formatMoney(totalDeudasPend);
+  }
+
+  function renderTables(){
+    // Últimas 5
+    ultVentasBody.innerHTML = ventas.slice(0,5).map(v => `<tr><td>${v.fecha}</td><td>${formatMoney(v.monto)}</td><td>${escapeHtml(v.notas||"")}</td></tr>`).join("");
+    ultEgresosBody.innerHTML = egresos.slice(0,5).map(v => `<tr><td>${v.fecha}</td><td>${formatMoney(v.monto)}</td><td>${escapeHtml(v.descripcion)}</td></tr>`).join("");
+
+    // Full tables with delete
+    ventasBody.innerHTML = ventas.map(v => rowVenta(v)).join("");
+    egresosBody.innerHTML = egresos.map(v => rowEgreso(v)).join("");
+    deudasBody.innerHTML = deudas.map(v => rowDeuda(v)).join("");
+
+    // bind deletes
+    document.querySelectorAll('[data-del-venta]').forEach(btn => btn.addEventListener('click', async () => {
+      const id = btn.getAttribute('data-del-venta');
+      // Si hay sesión, SIEMPRE intentar eliminar en el servidor SQL
+      if(isAuthenticated()){
+        const result = await apiDelete('ventas.php', id);
+        if(result){
+          // Recargar todos los datos del servidor para tener la versión más actualizada
+          await loadAllData(true);
+        } else {
+          // Si el servidor falla, mostrar error y NO eliminar localmente
+          // Los datos deben estar sincronizados en el servidor
+          alert('Error: No se pudo eliminar del servidor. Verifica tu conexión.');
+          return; // No continuar si falla el servidor
+        }
+      } else {
+        alert('Debes iniciar sesión para eliminar registros.');
         return;
-    }
-    if (monto <= 0) {
-        errorElement.textContent = 'El monto debe ser mayor que cero';
+      }
+      refresh();
+    }));
+    document.querySelectorAll('[data-del-egreso]').forEach(btn => btn.addEventListener('click', async () => {
+      const id = btn.getAttribute('data-del-egreso');
+      // Si hay sesión, SIEMPRE intentar eliminar en el servidor SQL
+      if(isAuthenticated()){
+        const result = await apiDelete('egresos.php', id);
+        if(result){
+          await loadAllData(true);
+        } else {
+          // Si el servidor falla, mostrar error y NO eliminar localmente
+          alert('Error: No se pudo eliminar del servidor. Verifica tu conexión.');
+          return;
+        }
+      } else {
+        alert('Debes iniciar sesión para eliminar registros.');
         return;
-    }
-    try {
-        await fetch('/server/php/egresos.php', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ monto, fecha, descripcion })
-        });
-        document.getElementById('egreso-monto').value = '';
-        document.getElementById('egreso-descripcion').value = '';
-        errorElement.textContent = '';
-        await cargarDatosDesdeAPI();
-        cambiarVista('egresos');
-    } catch (err) {
-        errorElement.textContent = 'Error al guardar el egreso';
-    }
-}
-
-/**
- * Actualiza la tabla de egresos
- */
-function actualizarTablaEgresos() {
-    const tbody = document.querySelector('#tabla-egresos tbody');
-    tbody.innerHTML = '';
-    
-    egresos.forEach(egreso => {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-            <td>${formatearFecha(egreso.fecha)}</td>
-            <td>$${egreso.monto}</td>
-            <td>${egreso.descripcion}</td>
-            <td>
-                <button class="action-btn delete-btn" data-id="${egreso.id}">Eliminar</button>
-            </td>
-        `;
-        tbody.appendChild(tr);
-    });
-    
-    // Agregar eventos a los botones de eliminar
-    document.querySelectorAll('#tabla-egresos .delete-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-            const id = parseInt(btn.getAttribute('data-id'));
-            eliminarEgreso(id);
-        });
-    });
-}
-
-/**
- * Elimina un egreso por su ID
- */
-async function eliminarEgreso(id) {
-    await fetch(`/server/php/egresos.php?id=${id}`, { method: 'DELETE' });
-    await cargarDatosDesdeAPI();
-    actualizarTablaEgresos();
-    actualizarDashboard();
-}
-
-/**
- * Registra una nueva deuda
- */
-async function registrarDeuda() {
-    const comprador = document.getElementById('deuda-comprador').value;
-    const monto = parseFloat(document.getElementById('deuda-monto').value);
-    const fecha = document.getElementById('deuda-fecha').value;
-    const errorElement = document.getElementById('deuda-error');
-    if (!comprador || !monto || !fecha) {
-        errorElement.textContent = 'Por favor, complete todos los campos';
+      }
+      refresh();
+    }));
+    document.querySelectorAll('[data-del-deuda]').forEach(btn => btn.addEventListener('click', async () => {
+      const id = btn.getAttribute('data-del-deuda');
+      // Si hay sesión, SIEMPRE intentar eliminar en el servidor SQL
+      if(isAuthenticated()){
+        const result = await apiDelete('deudas.php', id);
+        if(result){
+          await loadAllData(true);
+        } else {
+          // Si el servidor falla, mostrar error y NO eliminar localmente
+          alert('Error: No se pudo eliminar del servidor. Verifica tu conexión.');
+          return;
+        }
+      } else {
+        alert('Debes iniciar sesión para eliminar registros.');
         return;
-    }
-    if (monto <= 0) {
-        errorElement.textContent = 'El monto debe ser mayor que cero';
-        return;
-    }
-    try {
-        await fetch('/server/php/deudas.php', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ comprador, monto, fecha })
-        });
-        document.getElementById('deuda-comprador').value = '';
-        document.getElementById('deuda-monto').value = '';
-        errorElement.textContent = '';
-        await cargarDatosDesdeAPI();
-        cambiarVista('deudas');
-    } catch (err) {
-        errorElement.textContent = 'Error al guardar la deuda';
-    }
-}
+      }
+      refresh();
+    }));
+  }
 
-/**
- * Actualiza la tabla de deudas
- */
-function actualizarTablaDeudas() {
-    const tbody = document.querySelector('#tabla-deudas tbody');
-    tbody.innerHTML = '';
-    
-    deudas.forEach(deuda => {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-            <td>${deuda.comprador}</td>
-            <td>${formatearFecha(deuda.fecha)}</td>
-            <td>$${deuda.monto}</td>
-            <td>${deuda.estado === 'pendiente' ? 'Pendiente' : 'Pagado'}</td>
-            <td>
-                ${deuda.estado === 'pendiente' ? 
-                    `<button class="action-btn pay-btn" data-id="${deuda.id}">Marcar Pagado</button>` : ''}
-                <button class="action-btn delete-btn" data-id="${deuda.id}">Eliminar</button>
-            </td>
-        `;
-        tbody.appendChild(tr);
+  function rowVenta(v){
+    return `<tr><td>${v.fecha}</td><td>${formatMoney(v.monto)}</td><td>${escapeHtml(v.notas||"")}</td><td class="row-actions"><button class="link delete" data-del-venta="${v.id}">Eliminar</button></td></tr>`;
+  }
+  function rowEgreso(v){
+    return `<tr><td>${v.fecha}</td><td>${formatMoney(v.monto)}</td><td>${escapeHtml(v.descripcion)}</td><td class="row-actions"><button class="link delete" data-del-egreso="${v.id}">Eliminar</button></td></tr>`;
+  }
+  function rowDeuda(v){
+    return `<tr><td>${escapeHtml(v.comprador)}</td><td>${v.fecha}</td><td>${formatMoney(v.monto)}</td><td>${v.estado}</td><td class="row-actions"><button class="link delete" data-del-deuda="${v.id}">Eliminar</button></td></tr>`;
+  }
+
+  function escapeHtml(s){
+    return String(s).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[ch]));
+  }
+
+  // Chart: simple canvas bars for month sums
+  function renderChart(){
+    const canvas = document.getElementById('chart');
+    if(!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const width = canvas.width, height = canvas.height;
+    ctx.clearRect(0,0,width,height);
+    // compute last 6 months buckets
+    const months = getLastMonthsLabels(6);
+    const ventasByM = months.map(m => sumByMonth(ventas, m.key));
+    const egresosByM = months.map(m => sumByMonth(egresos, m.key));
+    // bounds
+    const maxVal = Math.max(1, ...ventasByM, ...egresosByM);
+    const padding = { top:20, right:20, bottom:40, left:50 };
+    const chartW = width - padding.left - padding.right;
+    const chartH = height - padding.top - padding.bottom;
+    // axes
+    ctx.strokeStyle = '#2b3157';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(padding.left, padding.top);
+    ctx.lineTo(padding.left, padding.top + chartH);
+    ctx.lineTo(padding.left + chartW, padding.top + chartH);
+    ctx.stroke();
+    // bars
+    const groupWidth = chartW / months.length;
+    const barWidth = Math.min(24, (groupWidth - 20) / 2);
+    months.forEach((m, i) => {
+      const x0 = padding.left + i * groupWidth + 20;
+      const vH = (ventasByM[i] / maxVal) * (chartH - 10);
+      const eH = (egresosByM[i] / maxVal) * (chartH - 10);
+      // ventas bar (blue)
+      ctx.fillStyle = '#5b8cff';
+      ctx.fillRect(x0, padding.top + chartH - vH, barWidth, vH);
+      // egresos bar (pink)
+      ctx.fillStyle = '#ff6bb3';
+      ctx.fillRect(x0 + barWidth + 10, padding.top + chartH - eH, barWidth, eH);
+      // labels
+      ctx.fillStyle = '#9aa4c7';
+      ctx.font = '12px system-ui';
+      ctx.textAlign = 'center';
+      ctx.fillText(m.label, x0 + barWidth/2 + 5, padding.top + chartH + 16);
     });
-    
-    // Agregar eventos a los botones
-    document.querySelectorAll('#tabla-deudas .pay-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-            const id = parseInt(btn.getAttribute('data-id'));
-            marcarDeudaPagada(id);
-        });
-    });
-    
-    document.querySelectorAll('#tabla-deudas .delete-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-            const id = parseInt(btn.getAttribute('data-id'));
-            eliminarDeuda(id);
-        });
-    });
-}
+    // y labels
+    ctx.textAlign = 'right';
+    for(let t=0;t<=4;t++){
+      const val = Math.round((t/4)*maxVal);
+      const y = padding.top + chartH - (t/4)*(chartH - 10);
+      ctx.fillStyle = '#9aa4c7';
+      ctx.fillText(shortMoney(val), padding.left - 8, y);
+    }
+  }
 
-/**
- * Marca una deuda como pagada
- */
-async function marcarDeudaPagada(id) {
-    await fetch(`/server/php/deudas.php?id=${id}&action=pagar`, { method: 'PUT' });
-    await cargarDatosDesdeAPI();
-    actualizarTablaDeudas();
-    actualizarDashboard();
-}
+  function shortMoney(n){
+    if(n >= 1e6) return (n/1e6).toFixed(1)+"M";
+    if(n >= 1e3) return (n/1e3).toFixed(1)+"K";
+    return String(n);
+  }
+  function getLastMonthsLabels(count){
+    const now = new Date();
+    const res = [];
+    for(let i=count-1;i>=0;i--){
+      const d = new Date(now.getFullYear(), now.getMonth()-i, 1);
+      const key = d.toISOString().slice(0,7); // YYYY-MM
+      const label = d.toLocaleString('es-ES', { month:'short' });
+      res.push({ key, label });
+    }
+    return res;
+  }
+  function sumByMonth(items, yyyymm){
+    return items.filter(it => (it.fecha||'').slice(0,7) === yyyymm)
+                .reduce((a,v) => a + v.monto, 0);
+  }
 
-/**
- * Elimina una deuda por su ID
- */
-async function eliminarDeuda(id) {
-    await fetch(`/server/php/deudas.php?id=${id}`, { method: 'DELETE' });
-    await cargarDatosDesdeAPI();
-    actualizarTablaDeudas();
-    actualizarDashboard();
-}
+  // Session bootstrap
+  (async () => {
+    const session = getSession();
+    if(session && session.user && USERS[session.user]){
+      await mountApp();
+    }
+    else {
+      document.body.classList.add('no-scroll');
+    }
+  })();
+})();
 
-/**
- * Formatea una fecha en formato YYYY-MM-DD a DD/MM/YYYY
- */
-function formatearFecha(fechaStr) {
-    if (!fechaStr) return '-';
-    
-    const partes = fechaStr.split('-');
-    if (partes.length !== 3) return fechaStr;
-    
-    return `${partes[2]}/${partes[1]}/${partes[0]}`;
-}
+

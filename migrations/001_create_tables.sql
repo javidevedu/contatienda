@@ -1,26 +1,27 @@
-
-
+-- MySQL schema for ContaTienda
 CREATE TABLE IF NOT EXISTS ventas (
   id INT AUTO_INCREMENT PRIMARY KEY,
-  monto DECIMAL(10,2) NOT NULL,
+  monto DECIMAL(12,2) NOT NULL,
   fecha DATE NOT NULL,
-  notas TEXT,
+  notas VARCHAR(255) NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS egresos (
   id INT AUTO_INCREMENT PRIMARY KEY,
-  monto DECIMAL(10,2) NOT NULL,
+  monto DECIMAL(12,2) NOT NULL,
   fecha DATE NOT NULL,
-  descripcion TEXT NOT NULL,
+  descripcion VARCHAR(255) NOT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS deudas (
   id INT AUTO_INCREMENT PRIMARY KEY,
-  comprador VARCHAR(255) NOT NULL,
-  monto DECIMAL(10,2) NOT NULL,
+  comprador VARCHAR(120) NOT NULL,
+  monto DECIMAL(12,2) NOT NULL,
   fecha DATE NOT NULL,
-  estado ENUM('pendiente','pagado') DEFAULT 'pendiente',
+  estado ENUM('pagado','pendiente') NOT NULL DEFAULT 'pendiente',
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+

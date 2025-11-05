@@ -1,15 +1,11 @@
-const knex = require('knex');
-require('dotenv').config();
+// Optional Node.js connection config (not required for running the frontend)
+// Provided to mirror hosting credentials if you later build a Node API.
 
-const db = knex({
-  client: 'mysql2',
-  connection: {
-    host: process.env.DB_HOST || '127.0.0.1',
-    user: process.env.DB_USER || 'root',
-    password: process.env.DB_PASSWORD || '',
-    database: process.env.DB_NAME || 'contatienda'
-  },
-  pool: { min: 0, max: 7 }
-});
+export const dbConfig = {
+  host: 'sql206.infinityfree.com',
+  database: 'if0_40216426_contatienda',
+  user: 'if0_40216426',
+  password: 'qepqyiXERz'
+};
 
-module.exports = db;
+

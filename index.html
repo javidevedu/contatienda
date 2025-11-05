@@ -3,209 +3,224 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ContaTienda - Gestión Contable</title>
+    <title>ContaTienda</title>
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <!-- Pantalla de Login -->
-    <div id="login-screen" class="screen active">
-        <div class="login-container">
-            <h1>ContaTienda</h1>
-            <h2>Gestión Contable</h2>
-            <div class="form-group">
-                <label for="username">Usuario:</label>
-                <input type="text" id="username" placeholder="Ingrese su usuario">
-            </div>
-            <div class="form-group">
-                <label for="password">Contraseña:</label>
-                <input type="password" id="password" placeholder="Ingrese su contraseña">
-            </div>
-            <button id="login-btn">Ingresar</button>
-            <p id="login-error" class="error-message"></p>
-        </div>
-    </div>
+    <div id="app">
+        <main id="login-view" class="view">
+            <div class="login-card">
+                <h1>ContaTienda</h1>
+                <p class="subtitle">Gestión contable simple para tu tienda</p>
+                <form id="login-form">
+                    <label for="username">Usuario</label>
+                    <input type="text" id="username" autocomplete="username" required>
 
-    <!-- Pantalla Principal (Dashboard) -->
-    <div id="main-screen" class="screen">
-        <!-- Menú Lateral -->
-        <div class="sidebar">
-            <h2>ContaTienda - Javier Castillo</h2>
-            <ul class="menu">
-                <li><a href="#" data-view="dashboard" class="active">Dashboard</a></li>
-                <li><a href="#" data-view="ventas">Registrar Ventas</a></li>
-                <li><a href="#" data-view="egresos">Registrar Egresos</a></li>
-                <li><a href="#" data-view="deudas">Gestionar Deudas</a></li>
-            </ul>
-            <button id="logout-btn">Guardar y Cerrar Sesión</button>
-        </div>
+                    <label for="password">Contraseña</label>
+                    <input type="password" id="password" autocomplete="current-password" required>
 
-        <!-- Contenido Principal -->
-        <div class="main-content">
-            <!-- Dashboard -->
-            <div id="dashboard-view" class="view active">
-                <h2>Dashboard de Resumen</h2>
-                <div class="dashboard-cards">
-                    <div class="card">
-                        <h3>Total Ventas</h3>
-                        <p id="total-ventas">$0</p>
+                    <button type="submit" class="btn primary">Ingresar</button>
+                    <p id="login-error" class="error" aria-live="polite"></p>
+                </form>
+                <div class="hint">
+                    <strong>Demo:</strong> u123/123, u1234/1234
+                </div>
+            </div>
+        </main>
+
+        <div id="app-layout" class="hidden">
+            <aside class="sidebar">
+                <div class="brand">ContaTienda</div>
+                <nav>
+                    <button data-nav="dashboard" class="nav-item active">Dashboard</button>
+                    <button data-nav="ventas" class="nav-item">Registrar Ventas</button>
+                    <button data-nav="egresos" class="nav-item">Registrar Egresos</button>
+                    <button data-nav="deudas" class="nav-item">Gestionar Deudas</button>
+                </nav>
+                <div class="spacer"></div>
+                <button id="logout-btn" class="btn outline">Salir</button>
+            </aside>
+
+            <section class="content">
+                <header class="topbar">
+                    <h2 id="section-title">Dashboard</h2>
+                    <button id="reload-btn" class="btn outline" title="Recargar datos del servidor">🔄 Recargar</button>
+                </header>
+
+                <div id="dashboard-view" class="view">
+                    <div class="cards">
+                        <div class="card">
+                            <div class="card-label">Total Ingresos</div>
+                            <div class="card-value" id="total-ventas">$0</div>
+                        </div>
+                        <div class="card">
+                            <div class="card-label">Total Egresos</div>
+                            <div class="card-value" id="total-egresos">$0</div>
+                        </div>
+                        <div class="card">
+                            <div class="card-label">Deudas Pendientes</div>
+                            <div class="card-value" id="total-deudas">$0</div>
+                        </div>
                     </div>
-                    <div class="card">
-                        <h3>Total Egresos</h3>
-                        <p id="total-egresos">$0</p>
+
+                    <div class="panel">
+                        <div class="panel-header">
+                            <h3>Movimientos mensuales</h3>
+                        </div>
+                        <canvas id="chart" width="900" height="360" aria-label="Gráfico de barras de ventas y egresos" role="img"></canvas>
                     </div>
-                    <div class="card">
-                        <h3>Total Deudas Pendientes</h3>
-                        <p id="total-deudas">$0</p>
+
+                    <div class="grid">
+                        <div class="panel">
+                            <div class="panel-header"><h3>Últimas Ventas</h3></div>
+                            <table class="table" id="tabla-ult-ventas">
+                                <thead>
+                                    <tr><th>Fecha</th><th>Monto</th><th>Notas</th></tr>
+                                </thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+                        <div class="panel">
+                            <div class="panel-header"><h3>Últimos Egresos</h3></div>
+                            <table class="table" id="tabla-ult-egresos">
+                                <thead>
+                                    <tr><th>Fecha</th><th>Monto</th><th>Descripción</th></tr>
+                                </thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
-                <div class="dashboard-tables">
-                    <div class="table-container">
-                        <h3>Últimas Ventas</h3>
-                        <table id="ultimas-ventas">
+
+                <div id="ventas-view" class="view hidden">
+                    <div class="panel">
+                        <div class="panel-header">
+                            <h3>Registrar Venta</h3>
+                        </div>
+                        <form id="form-venta" class="form-grid">
+                            <div>
+                                <label for="venta-monto">Monto</label>
+                                <input type="number" id="venta-monto" min="0" step="0.01" required>
+                            </div>
+                            <div>
+                                <label for="venta-fecha">Fecha</label>
+                                <input type="date" id="venta-fecha" required>
+                            </div>
+                            <div class="full">
+                                <label for="venta-notas">Notas</label>
+                                <input type="text" id="venta-notas" placeholder="Opcional">
+                            </div>
+                            <div class="full">
+                                <button type="submit" class="btn primary">Guardar</button>
+                                <span id="venta-msg" class="msg"></span>
+                            </div>
+                        </form>
+                    </div>
+
+                    <div class="panel">
+                        <div class="panel-header"><h3>Ventas</h3></div>
+                        <table class="table" id="tabla-ventas">
                             <thead>
-                                <tr>
-                                    <th>Fecha</th>
-                                    <th>Monto</th>
-                                    <th>Notas</th>
-                                </tr>
+                                <tr><th>Fecha</th><th>Monto</th><th>Notas</th><th></th></tr>
                             </thead>
-                            <tbody>
-                                <!-- Se llenará dinámicamente -->
-                            </tbody>
+                            <tbody></tbody>
                         </table>
                     </div>
-                    <div class="table-container">
-                        <h3>Últimos Egresos</h3>
-                        <table id="ultimos-egresos">
+                </div>
+
+                <div id="egresos-view" class="view hidden">
+                    <div class="panel">
+                        <div class="panel-header">
+                            <h3>Registrar Egreso</h3>
+                        </div>
+                        <form id="form-egreso" class="form-grid">
+                            <div>
+                                <label for="egreso-monto">Monto</label>
+                                <input type="number" id="egreso-monto" min="0" step="0.01" required>
+                            </div>
+                            <div>
+                                <label for="egreso-fecha">Fecha</label>
+                                <input type="date" id="egreso-fecha" required>
+                            </div>
+                            <div class="full">
+                                <label for="egreso-desc">Descripción</label>
+                                <input type="text" id="egreso-desc" required>
+                            </div>
+                            <div class="full">
+                                <button type="submit" class="btn primary">Guardar</button>
+                                <span id="egreso-msg" class="msg"></span>
+                            </div>
+                        </form>
+                    </div>
+
+                    <div class="panel">
+                        <div class="panel-header"><h3>Egresos</h3></div>
+                        <table class="table" id="tabla-egresos">
                             <thead>
-                                <tr>
-                                    <th>Fecha</th>
-                                    <th>Monto</th>
-                                    <th>Descripción</th>
-                                </tr>
+                                <tr><th>Fecha</th><th>Monto</th><th>Descripción</th><th></th></tr>
                             </thead>
-                            <tbody>
-                                <!-- Se llenará dinámicamente -->
-                            </tbody>
+                            <tbody></tbody>
                         </table>
                     </div>
                 </div>
-            </div>
 
-            <!-- Registro de Ventas -->
-            <div id="ventas-view" class="view">
-                <h2>Registro de Ventas</h2>
-                <div class="form-container">
-                    <div class="form-group">
-                        <label for="venta-monto">Monto:</label>
-                        <input type="number" id="venta-monto" placeholder="Ingrese el monto">
+                <div id="deudas-view" class="view hidden">
+                    <div class="panel">
+                        <div class="panel-header">
+                            <h3>Gestionar Deuda</h3>
+                        </div>
+                        <form id="form-deuda" class="form-grid">
+                            <div>
+                                <label for="deuda-comprador">Comprador</label>
+                                <input type="text" id="deuda-comprador" required>
+                            </div>
+                            <div>
+                                <label for="deuda-monto">Monto</label>
+                                <input type="number" id="deuda-monto" min="0" step="0.01" required>
+                            </div>
+                            <div>
+                                <label for="deuda-fecha">Fecha</label>
+                                <input type="date" id="deuda-fecha" required>
+                            </div>
+                            <div>
+                                <label for="deuda-estado">Estado</label>
+                                <select id="deuda-estado">
+                                    <option value="pendiente">Pendiente</option>
+                                    <option value="pagado">Pagado</option>
+                                </select>
+                            </div>
+                            <div class="full">
+                                <button type="submit" class="btn primary">Guardar</button>
+                                <span id="deuda-msg" class="msg"></span>
+                            </div>
+                        </form>
                     </div>
-                    <div class="form-group">
-                        <label for="venta-fecha">Fecha:</label>
-                        <input type="date" id="venta-fecha">
-                    </div>
-                    <div class="form-group">
-                        <label for="venta-notas">Notas:</label>
-                        <textarea id="venta-notas" placeholder="Ingrese notas adicionales"></textarea>
-                    </div>
-                    <button id="registrar-venta-btn">Registrar Venta</button>
-                    <p id="venta-error" class="error-message"></p>
-                </div>
-                <div class="table-container">
-                    <h3>Historial de Ventas</h3>
-                    <table id="tabla-ventas">
-                        <thead>
-                            <tr>
-                                <th>Fecha</th>
-                                <th>Monto</th>
-                                <th>Notas</th>
-                                <th>Acciones</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <!-- Se llenará dinámicamente -->
-                        </tbody>
-                    </table>
-                </div>
-            </div>
 
-            <!-- Registro de Egresos -->
-            <div id="egresos-view" class="view">
-                <h2>Registro de Egresos</h2>
-                <div class="form-container">
-                    <div class="form-group">
-                        <label for="egreso-monto">Monto:</label>
-                        <input type="number" id="egreso-monto" placeholder="Ingrese el monto">
+                    <div class="panel">
+                        <div class="panel-header"><h3>Deudas</h3></div>
+                        <table class="table" id="tabla-deudas">
+                            <thead>
+                                <tr><th>Comprador</th><th>Fecha</th><th>Monto</th><th>Estado</th><th></th></tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
                     </div>
-                    <div class="form-group">
-                        <label for="egreso-fecha">Fecha:</label>
-                        <input type="date" id="egreso-fecha">
-                    </div>
-                    <div class="form-group">
-                        <label for="egreso-descripcion">Descripción:</label>
-                        <textarea id="egreso-descripcion" placeholder="Ingrese la descripción"></textarea>
-                    </div>
-                    <button id="registrar-egreso-btn">Registrar Egreso</button>
-                    <p id="egreso-error" class="error-message"></p>
                 </div>
-                <div class="table-container">
-                    <h3>Historial de Egresos</h3>
-                    <table id="tabla-egresos">
-                        <thead>
-                            <tr>
-                                <th>Fecha</th>
-                                <th>Monto</th>
-                                <th>Descripción</th>
-                                <th>Acciones</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <!-- Se llenará dinámicamente -->
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
-            <!-- Gestión de Deudas -->
-            <div id="deudas-view" class="view">
-                <h2>Gestión de Deudas</h2>
-                <div class="form-container">
-                    <div class="form-group">
-                        <label for="deuda-comprador">Comprador:</label>
-                        <input type="text" id="deuda-comprador" placeholder="Nombre del comprador">
-                    </div>
-                    <div class="form-group">
-                        <label for="deuda-monto">Monto:</label>
-                        <input type="number" id="deuda-monto" placeholder="Ingrese el monto">
-                    </div>
-                    <div class="form-group">
-                        <label for="deuda-fecha">Fecha:</label>
-                        <input type="date" id="deuda-fecha">
-                    </div>
-                    <button id="registrar-deuda-btn">Registrar Deuda</button>
-                    <p id="deuda-error" class="error-message"></p>
-                </div>
-                <div class="table-container">
-                    <h3>Historial de Deudas</h3>
-                    <table id="tabla-deudas">
-                        <thead>
-                            <tr>
-                                <th>Comprador</th>
-                                <th>Fecha</th>
-                                <th>Monto</th>
-                                <th>Estado</th>
-                                <th>Acciones</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <!-- Se llenará dinámicamente -->
-                        </tbody>
-                    </table>
-                </div>
-            </div>
+            </section>
         </div>
     </div>
 
     <script src="app.js"></script>
+    <noscript>Por favor activa JavaScript para usar esta aplicación.</noscript>
+    <script>
+        // set default date inputs to today
+        document.addEventListener('DOMContentLoaded', () => {
+            const today = new Date().toISOString().slice(0,10);
+            const ids = ['venta-fecha', 'egreso-fecha', 'deuda-fecha'];
+            ids.forEach(id => { const el = document.getElementById(id); if (el) el.value = today; });
+        });
+    </script>
 </body>
 </html>
+
+
