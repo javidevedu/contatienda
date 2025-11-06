@@ -45,7 +45,8 @@
   // API functions
   async function apiGet(endpoint){
     try {
-      const res = await fetch(API_BASE + endpoint);
+      const url = API_BASE + endpoint + (endpoint.includes('?') ? '&' : '?') + '_ts=' + Date.now();
+      const res = await fetch(url, { cache: 'no-store', headers: { 'Cache-Control': 'no-cache' } });
       if(!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       return Array.isArray(data) ? data : [];
@@ -61,9 +62,10 @@
   async function apiPost(endpoint, body, retries = 3){
     for(let i = 0; i < retries; i++){
       try {
-        const res = await fetch(API_BASE + endpoint, {
+        const res = await fetch(API_BASE + endpoint + `?_ts=${Date.now()}`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          cache: 'no-store',
+          headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-cache' },
           body: JSON.stringify(body)
         });
         if(!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -83,7 +85,7 @@
     async function apiDelete(endpoint, id){
     // Intento principal: DELETE (por si el backend lo soporta)
     try {
-      const res = await fetch(`${API_BASE}${endpoint}?id=${encodeURIComponent(id)}`, { method: 'DELETE' });
+      const res = await fetch(`${API_BASE}${endpoint}?id=${encodeURIComponent(id)}&_ts=${Date.now()}`, { method: 'DELETE', cache: 'no-store', headers: { 'Cache-Control': 'no-cache' } });
       if(res.ok) return await res.json();
       console.warn(`API DELETE ${endpoint} returned ${res.status}`);
     } catch(err){
@@ -92,9 +94,10 @@
 
     // Fallback 1: POST enviando JSON con _method='DELETE' (común en backends que emulan verbos)
     try {
-      const resJsonFallback = await fetch(API_BASE + endpoint, {
+      const resJsonFallback = await fetch(API_BASE + endpoint + `?_ts=${Date.now()}`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        cache: 'no-store',
+        headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-cache' },
         body: JSON.stringify({ id, _method: 'DELETE' })
       });
       if(resJsonFallback.ok) return await resJsonFallback.json();
@@ -108,9 +111,10 @@
       const form = new URLSearchParams();
       form.append('id', id);
       form.append('_method', 'DELETE');
-      const resFormFallback = await fetch(API_BASE + endpoint, {
+      const resFormFallback = await fetch(API_BASE + endpoint + `?_ts=${Date.now()}`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        cache: 'no-store',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Cache-Control': 'no-cache' },
         body: form.toString()
       });
       if(resFormFallback.ok) return await resFormFallback.json();
