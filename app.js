@@ -175,9 +175,9 @@
     }
   }
 
-  function adaptVenta(v){ return { id: String(v.id), monto: parseFloat(v.monto), fecha: v.fecha, notas: v.notas || '' }; }
-  function adaptEgreso(e){ return { id: String(e.id), monto: parseFloat(e.monto), fecha: e.fecha, descripcion: e.descripcion }; }
-  function adaptDeuda(d){ return { id: String(d.id), comprador: d.comprador, monto: parseFloat(d.monto), fecha: d.fecha, estado: d.estado }; }
+  function adaptVenta(v){ return { id: String(v.id), monto: parseFloat(v.monto), fecha: v.fecha, notas: v.notas || '', created_at: v.created_at || null }; }
+  function adaptEgreso(e){ return { id: String(e.id), monto: parseFloat(e.monto), fecha: e.fecha, descripcion: e.descripcion, created_at: e.created_at || null }; }
+  function adaptDeuda(d){ return { id: String(d.id), comprador: d.comprador, monto: parseFloat(d.monto), fecha: d.fecha, estado: d.estado, created_at: d.created_at || null }; }
 
   function setSession(user){
     localStorage.setItem(storageKey.session, JSON.stringify({ user }));
@@ -439,12 +439,12 @@
   function renderAll(){
     renderTotals();
     renderTables();
-    renderChart();
+    renderCharts();
   }
   function refresh(){
     renderTotals();
     renderTables();
-    renderChart();
+    renderCharts();
   }
 
   function renderTotals(){
@@ -539,22 +539,71 @@
     return String(s).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[ch]));
   }
 
-  // Chart: simple canvas bars for month sums
-  function renderChart(){
-    const canvas = document.getElementById('chart');
+  // Charts: monthly sums, hourly counts (24h), weekly counts (Mon-Sun), monthly days
+  function renderCharts(){
+    renderMonthlyChart();
+    renderMonthlyDaysChart();
+    renderDailyHourlyChart();
+    renderWeeklyChart();
+  }
+
+  function renderMonthlyChart(){
+    const canvas = document.getElementById('chart-monthly');
     if(!canvas) return;
     const ctx = canvas.getContext('2d');
     const width = canvas.width, height = canvas.height;
     ctx.clearRect(0,0,width,height);
-    // compute last 6 months buckets
     const months = getLastMonthsLabels(6);
     const ventasByM = months.map(m => sumByMonth(ventas, m.key));
     const egresosByM = months.map(m => sumByMonth(egresos, m.key));
-    // bounds
-    const maxVal = Math.max(1, ...ventasByM, ...egresosByM);
-    const padding = { top:20, right:20, bottom:40, left:50 };
+    drawGroupedBars(ctx, width, height, months.map(m=>m.label), ventasByM, egresosByM, true);
+  }
+
+  function renderMonthlyDaysChart(){
+    const canvas = document.getElementById('chart-monthly-days');
+    if(!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const width = canvas.width, height = canvas.height;
+    ctx.clearRect(0,0,width,height);
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth();
+    const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+    const labels = Array.from({length: daysInMonth}, (_, i) => (i + 1).toString());
+    const ventasByDay = bucketByMonthDays(ventas, currentYear, currentMonth);
+    const egresosByDay = bucketByMonthDays(egresos, currentYear, currentMonth);
+    drawGroupedBars(ctx, width, height, labels, ventasByDay, egresosByDay, false);
+  }
+
+  function renderDailyHourlyChart(){
+    const canvas = document.getElementById('chart-daily');
+    if(!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const width = canvas.width, height = canvas.height;
+    ctx.clearRect(0,0,width,height);
+    const labels = Array.from({length:24}, (_,h)=> h.toString().padStart(2,'0'));
+    const ventasByH = bucketByHour(ventas);
+    const egresosByH = bucketByHour(egresos);
+    drawGroupedBars(ctx, width, height, labels, ventasByH, egresosByH, false);
+  }
+
+  function renderWeeklyChart(){
+    const canvas = document.getElementById('chart-weekly');
+    if(!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const width = canvas.width, height = canvas.height;
+    ctx.clearRect(0,0,width,height);
+    const weekLabels = ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'];
+    const ventasByW = bucketByWeekday(ventas);
+    const egresosByW = bucketByWeekday(egresos);
+    drawGroupedBars(ctx, width, height, weekLabels, ventasByW, egresosByW, false);
+  }
+
+  function drawGroupedBars(ctx, width, height, labels, seriesA, seriesB, moneyScale){
+    const padding = { top:16, right:18, bottom:34, left:42 };
     const chartW = width - padding.left - padding.right;
     const chartH = height - padding.top - padding.bottom;
+    const maxVal = Math.max(1, ...seriesA, ...seriesB);
     // axes
     ctx.strokeStyle = '#2b3157';
     ctx.lineWidth = 1;
@@ -564,31 +613,32 @@
     ctx.lineTo(padding.left + chartW, padding.top + chartH);
     ctx.stroke();
     // bars
-    const groupWidth = chartW / months.length;
-    const barWidth = Math.min(24, (groupWidth - 20) / 2);
-    months.forEach((m, i) => {
-      const x0 = padding.left + i * groupWidth + 20;
-      const vH = (ventasByM[i] / maxVal) * (chartH - 10);
-      const eH = (egresosByM[i] / maxVal) * (chartH - 10);
-      // ventas bar (blue)
+    const groupWidth = chartW / labels.length;
+    const barWidth = Math.max(6, Math.min(18, (groupWidth - 18) / 2));
+    labels.forEach((lab, i) => {
+      const x0 = padding.left + i * groupWidth + 14;
+      const aH = (seriesA[i] / maxVal) * (chartH - 8);
+      const bH = (seriesB[i] / maxVal) * (chartH - 8);
+      // A bar (ventas, blue)
       ctx.fillStyle = '#5b8cff';
-      ctx.fillRect(x0, padding.top + chartH - vH, barWidth, vH);
-      // egresos bar (pink)
+      ctx.fillRect(x0, padding.top + chartH - aH, barWidth, aH);
+      // B bar (egresos, pink)
       ctx.fillStyle = '#ff6bb3';
-      ctx.fillRect(x0 + barWidth + 10, padding.top + chartH - eH, barWidth, eH);
-      // labels
+      ctx.fillRect(x0 + barWidth + 8, padding.top + chartH - bH, barWidth, bH);
+      // x label
       ctx.fillStyle = '#9aa4c7';
-      ctx.font = '12px system-ui';
+      ctx.font = '11px system-ui';
       ctx.textAlign = 'center';
-      ctx.fillText(m.label, x0 + barWidth/2 + 5, padding.top + chartH + 16);
+      ctx.fillText(lab, x0 + barWidth/2 + 4, padding.top + chartH + 14);
     });
     // y labels
     ctx.textAlign = 'right';
-    for(let t=0;t<=4;t++){
-      const val = Math.round((t/4)*maxVal);
-      const y = padding.top + chartH - (t/4)*(chartH - 10);
+    for(let t=0;t<=3;t++){
+      const val = (t/3)*maxVal;
+      const y = padding.top + chartH - (t/3)*(chartH - 8);
       ctx.fillStyle = '#9aa4c7';
-      ctx.fillText(shortMoney(val), padding.left - 8, y);
+      ctx.font = '11px system-ui';
+      ctx.fillText(moneyScale ? shortMoney(Math.round(val)) : Math.round(val).toString(), padding.left - 6, y);
     }
   }
 
@@ -596,6 +646,47 @@
     if(n >= 1e6) return (n/1e6).toFixed(1)+"M";
     if(n >= 1e3) return (n/1e3).toFixed(1)+"K";
     return String(n);
+  }
+  function bucketByHour(items){
+    const arr = Array(24).fill(0);
+    for(const it of items){
+      const ts = it.created_at || it.fecha; // fallback: fecha sin hora contará como 00
+      if(!ts) continue;
+      const d = new Date(ts.replace(' ', 'T'));
+      const h = isNaN(d.getHours()) ? 0 : d.getHours();
+      arr[h] += 1;
+    }
+    return arr;
+  }
+  function bucketByWeekday(items){
+    // Mon=0 .. Sun=6
+    const arr = Array(7).fill(0);
+    for(const it of items){
+      const ts = it.fecha || it.created_at;
+      if(!ts) continue;
+      const d = new Date((it.fecha || '').slice(0,10) || ts);
+      // JS: 0 Sun .. 6 Sat -> convert to Mon(0)..Sun(6)
+      const jsW = d.getDay();
+      const idx = (jsW + 6) % 7;
+      arr[idx] += 1;
+    }
+    return arr;
+  }
+  function bucketByMonthDays(items, year, month){
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const arr = Array(daysInMonth).fill(0);
+    const targetYearMonth = `${year}-${String(month + 1).padStart(2, '0')}`;
+    for(const it of items){
+      const fecha = it.fecha || '';
+      if(!fecha) continue;
+      // Verificar que pertenece al mes actual
+      if(fecha.slice(0, 7) !== targetYearMonth) continue;
+      const day = parseInt(fecha.slice(8, 10), 10);
+      if(day >= 1 && day <= daysInMonth){
+        arr[day - 1] += 1; // day - 1 porque el array es 0-indexed
+      }
+    }
+    return arr;
   }
   function getLastMonthsLabels(count){
     const now = new Date();

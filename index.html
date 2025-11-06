@@ -29,22 +29,22 @@
         </main>
 
         <div id="app-layout" class="hidden">
-            <aside class="sidebar">
-                <div class="brand">ContaTienda</div>
-                <nav>
-                    <button data-nav="dashboard" class="nav-item active">Dashboard</button>
-                    <button data-nav="ventas" class="nav-item">Registrar Ventas</button>
-                    <button data-nav="egresos" class="nav-item">Registrar Egresos</button>
-                    <button data-nav="deudas" class="nav-item">Gestionar Deudas</button>
-                </nav>
-                <div class="spacer"></div>
-                <button id="logout-btn" class="btn outline">Salir</button>
-            </aside>
-
             <section class="content">
                 <header class="topbar">
-                    <h2 id="section-title">Dashboard</h2>
-                    <button id="reload-btn" class="btn outline" title="Recargar datos del servidor">🔄 Recargar</button>
+                    <div class="topbar-main">
+                        <div class="brand">ContaTienda</div>
+                        <div class="top-actions">
+                            <button id="reload-btn" class="btn outline" title="Recargar datos del servidor">🔄 Recargar</button>
+                            <button id="logout-btn" class="btn outline">Salir</button>
+                        </div>
+                    </div>
+                    <div class="topnav">
+                        <button data-nav="dashboard" class="nav-item active">Dashboard</button>
+                        <button data-nav="ventas" class="nav-item">Registrar Ventas</button>
+                        <button data-nav="egresos" class="nav-item">Registrar Egresos</button>
+                        <button data-nav="deudas" class="nav-item">Gestionar Deudas</button>
+                    </div>
+                    <h2 id="section-title" class="sr-only">Dashboard</h2>
                 </header>
 
                 <div id="dashboard-view" class="view">
@@ -63,11 +63,28 @@
                         </div>
                     </div>
 
-                    <div class="panel">
-                        <div class="panel-header">
-                            <h3>Movimientos mensuales</h3>
+                    <div class="grid">
+                        <div class="panel">
+                            <div class="panel-header">
+                                <h3>Movimientos mensuales</h3>
+                            </div>
+                            <canvas id="chart-monthly" width="900" height="220" aria-label="Gráfico mensual de ventas y egresos" role="img"></canvas>
                         </div>
-                        <canvas id="chart" width="900" height="360" aria-label="Gráfico de barras de ventas y egresos" role="img"></canvas>
+                        <div class="panel">
+                            <div class="panel-header"><h3>Distribución mensual (días)</h3></div>
+                            <canvas id="chart-monthly-days" width="900" height="220" aria-label="Gráfico por días del mes actual de ventas y egresos" role="img"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="grid">
+                        <div class="panel">
+                            <div class="panel-header"><h3>Distribución diaria (24h)</h3></div>
+                            <canvas id="chart-daily" width="900" height="220" aria-label="Gráfico por hora (24h) de ventas y egresos" role="img"></canvas>
+                        </div>
+                        <div class="panel">
+                            <div class="panel-header"><h3>Distribución semanal (Lun-Dom)</h3></div>
+                            <canvas id="chart-weekly" width="900" height="220" aria-label="Gráfico por día de semana de ventas y egresos" role="img"></canvas>
+                        </div>
                     </div>
 
                     <div class="grid">
