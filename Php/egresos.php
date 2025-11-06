@@ -18,24 +18,29 @@ if ($method === 'GET') {
 if ($method === 'POST') {
   $payload = json_decode(file_get_contents('php://input'), true);
   if (!$payload) { $payload = $_POST; }
-  $monto = isset($payload['monto']) ? floatval($payload['monto']) : null;
-  $fecha = isset($payload['fecha']) ? $payload['fecha'] : null;
-  $descripcion = isset($payload['descripcion']) ? $payload['descripcion'] : null;
-  if (!$monto || !$fecha || !$descripcion) { json_err('Campos requeridos'); exit; }
-  $stmt = $mysqli->prepare("INSERT INTO egresos (monto, fecha, descripcion) VALUES (?,?,?)");
-  if (!$stmt) {
-    json_err('Error al preparar consulta: ' . $mysqli->error, 500);
-    exit;
-  }
-  $stmt->bind_param('dss', $monto, $fecha, $descripcion);
-  if(!$stmt->execute()){
-    json_err('No se pudo insertar: ' . $stmt->error, 500);
+  if (isset($payload['_method']) && $payload['_method'] === 'DELETE') {
+    if (isset($payload['id'])) { $_GET['id'] = $payload['id']; }
+    $method = 'DELETE';
+  } else {
+    $monto = isset($payload['monto']) ? floatval($payload['monto']) : null;
+    $fecha = isset($payload['fecha']) ? $payload['fecha'] : null;
+    $descripcion = isset($payload['descripcion']) ? $payload['descripcion'] : null;
+    if (!$monto || !$fecha || !$descripcion) { json_err('Campos requeridos'); exit; }
+    $stmt = $mysqli->prepare("INSERT INTO egresos (monto, fecha, descripcion) VALUES (?,?,?)");
+    if (!$stmt) {
+      json_err('Error al preparar consulta: ' . $mysqli->error, 500);
+      exit;
+    }
+    $stmt->bind_param('dss', $monto, $fecha, $descripcion);
+    if(!$stmt->execute()){
+      json_err('No se pudo insertar: ' . $stmt->error, 500);
+      $stmt->close();
+      exit;
+    }
+    json_ok([ 'id' => $stmt->insert_id ]);
     $stmt->close();
     exit;
   }
-  json_ok([ 'id' => $stmt->insert_id ]);
-  $stmt->close();
-  exit;
 }
 
 if ($method === 'DELETE') {

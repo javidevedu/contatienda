@@ -18,25 +18,30 @@ if ($method === 'GET') {
 if ($method === 'POST') {
   $payload = json_decode(file_get_contents('php://input'), true);
   if (!$payload) { $payload = $_POST; }
-  $comprador = isset($payload['comprador']) ? $payload['comprador'] : null;
-  $monto = isset($payload['monto']) ? floatval($payload['monto']) : null;
-  $fecha = isset($payload['fecha']) ? $payload['fecha'] : null;
-  $estado = isset($payload['estado']) && $payload['estado'] === 'pagado' ? 'pagado' : 'pendiente';
-  if (!$comprador || !$monto || !$fecha) { json_err('Campos requeridos'); exit; }
-  $stmt = $mysqli->prepare("INSERT INTO deudas (comprador, monto, fecha, estado) VALUES (?,?,?,?)");
-  if (!$stmt) {
-    json_err('Error al preparar consulta: ' . $mysqli->error, 500);
-    exit;
-  }
-  $stmt->bind_param('sdss', $comprador, $monto, $fecha, $estado);
-  if(!$stmt->execute()){
-    json_err('No se pudo insertar: ' . $stmt->error, 500);
+  if (isset($payload['_method']) && $payload['_method'] === 'DELETE') {
+    if (isset($payload['id'])) { $_GET['id'] = $payload['id']; }
+    $method = 'DELETE';
+  } else {
+    $comprador = isset($payload['comprador']) ? $payload['comprador'] : null;
+    $monto = isset($payload['monto']) ? floatval($payload['monto']) : null;
+    $fecha = isset($payload['fecha']) ? $payload['fecha'] : null;
+    $estado = isset($payload['estado']) && $payload['estado'] === 'pagado' ? 'pagado' : 'pendiente';
+    if (!$comprador || !$monto || !$fecha) { json_err('Campos requeridos'); exit; }
+    $stmt = $mysqli->prepare("INSERT INTO deudas (comprador, monto, fecha, estado) VALUES (?,?,?,?)");
+    if (!$stmt) {
+      json_err('Error al preparar consulta: ' . $mysqli->error, 500);
+      exit;
+    }
+    $stmt->bind_param('sdss', $comprador, $monto, $fecha, $estado);
+    if(!$stmt->execute()){
+      json_err('No se pudo insertar: ' . $stmt->error, 500);
+      $stmt->close();
+      exit;
+    }
+    json_ok([ 'id' => $stmt->insert_id ]);
     $stmt->close();
     exit;
   }
-  json_ok([ 'id' => $stmt->insert_id ]);
-  $stmt->close();
-  exit;
 }
 
 if ($method === 'DELETE') {

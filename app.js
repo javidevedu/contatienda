@@ -80,16 +80,47 @@
     return null; // Falló después de todos los reintentos
   }
 
-  async function apiDelete(endpoint, id){
+    async function apiDelete(endpoint, id){
+    // Intento principal: DELETE (por si el backend lo soporta)
     try {
-      const res = await fetch(`${API_BASE}${endpoint}?id=${id}`, { method: 'DELETE' });
-      if(!res.ok) throw new Error(`HTTP ${res.status}`);
-      return await res.json();
+      const res = await fetch(`${API_BASE}${endpoint}?id=${encodeURIComponent(id)}`, { method: 'DELETE' });
+      if(res.ok) return await res.json();
+      console.warn(`API DELETE ${endpoint} returned ${res.status}`);
     } catch(err){
       console.warn(`API DELETE ${endpoint} failed:`, err);
-      // No desactivar backend permanentemente
-      return null;
     }
+
+    // Fallback 1: POST enviando JSON con _method='DELETE' (común en backends que emulan verbos)
+    try {
+      const resJsonFallback = await fetch(API_BASE + endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, _method: 'DELETE' })
+      });
+      if(resJsonFallback.ok) return await resJsonFallback.json();
+      console.warn(`JSON fallback POST ${endpoint} returned ${resJsonFallback.status}`);
+    } catch(err){
+      console.warn(`JSON fallback POST ${endpoint} failed:`, err);
+    }
+
+    // Fallback 2: POST form-url-encoded (algunos PHP esperan form data)
+    try {
+      const form = new URLSearchParams();
+      form.append('id', id);
+      form.append('_method', 'DELETE');
+      const resFormFallback = await fetch(API_BASE + endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: form.toString()
+      });
+      if(resFormFallback.ok) return await resFormFallback.json();
+      console.warn(`Form fallback POST ${endpoint} returned ${resFormFallback.status}`);
+    } catch(err){
+      console.warn(`Form fallback POST ${endpoint} failed:`, err);
+    }
+
+    // Si todo falla, devolver null para que el UI muestre el error apropiado
+    return null;
   }
 
   async function loadAllData(forceBackend = false){
